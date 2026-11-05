@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Админ-панель — Пиона</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#faf5f8;color:#3a2430;min-height:100vh;padding:30px 16px}
+.card{max-width:1000px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 10px 40px rgba(194,24,91,.12);padding:34px 28px}
+h1{color:#c2185b;font-size:26px;margin-bottom:6px}
+.sub{color:#8a7480;font-size:14px;margin-bottom:24px}
+input[type=password],input[type=text]{width:100%;max-width:360px;padding:13px 16px;border:1.5px solid #f0d5e0;border-radius:12px;font-size:15px;margin:10px 0 16px;display:block}
+button{background:#c2185b;color:#fff;border:none;padding:13px 30px;border-radius:30px;font-weight:700;font-size:15px;cursor:pointer}
+button:hover{background:#8e1043}
+button:disabled{background:#d9a1b8;cursor:wait}
+.error{color:#c2185b;font-weight:600;font-size:14px;margin-top:8px}
+table{width:100%;border-collapse:collapse;margin-top:20px;font-size:14px}
+th{background:#fce4ec;color:#8e1043;text-align:left;padding:10px 12px;white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid #faeef4;vertical-align:top}
+tr:nth-child(even) td{background:#fdf8fa}
+.num{color:#c9a227;font-weight:700;white-space:nowrap}
+.refresh{margin-top:18px;font-size:13px;color:#8a7480}
+.refresh a{color:#c2185b;font-weight:600;cursor:pointer}
+.count{font-size:13px;color:#8a7480;margin-top:6px}
+@media(max-width:760px){.card{padding:22px 14px}.scroll{overflow-x:auto}}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🌸 Пиона — заявки с сайта</h1>
+  <p class="sub">Все записи по порядку, свежие сверху</p>
+
+  <div id="login-view">
+    <label>Введите пароль администратора</label>
+    <input type="password" id="pwd" placeholder="Пароль" onkeydown="if(event.key==='Enter')loadOrders()">
+    <button id="btn-login" onclick="loadOrders()">Войти</button>
+    <div class="error" id="err" style="display:none">Неверный пароль. Попробуйте ещё раз.</div>
+  </div>
+
+  <div id="data-view" style="display:none">
+    <div class="scroll">
+      <table id="orders-table">
+        <thead>
+          <tr><th>№</th><th>Имя</th><th>Контакт</th><th>Услуга</th><th>Дата визита</th><th>Время</th><th>Пожелания</th><th>Канал</th><th>Дата заявки</th></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p class="count" id="count"></p>
+    <p class="refresh">Обновить список: <a onclick="loadOrders()">обновить</a> · выйти: <a onclick="logout()">выйти</a></p>
+  </div>
+</div>
+
+<script>
+var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxIY1nhqV-kMxfnCESgLbKNpp89A2ZJyIYTU-3_WMTbnJCTFuFpfRxuQ3Uw1GqkBF2Z/exec";
+var ADMIN_PASSWORD = "piona7235";
+var ADMIN_KEY = "piona7235";
+
+function loadOrders(){
+  var pwd = document.getElementById('pwd').value;
+  if(pwd !== ADMIN_PASSWORD){
+    document.getElementById('err').style.display = 'block';
+    return;
+  }
+  document.getElementById('err').style.display = 'none';
+  var btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.textContent = 'Загружаю…';
+
+  fetch(SCRIPT_URL + '?action=getOrders&key=' + encodeURIComponent(ADMIN_KEY))
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+      btn.disabled = false; btn.textContent = 'Войти';
+      if(!res.ok){ document.getElementById('err').style.display = 'block'; return; }
+      document.getElementById('login-view').style.display = 'none';
+      document.getElementById('data-view').style.display = 'block';
+      render(res.orders || []);
+    })
+    .catch(function(){
+      btn.disabled = false; btn.textContent = 'Войти';
+      document.getElementById('err').textContent = 'Не удалось получить данные. Проверьте адрес скрипта и доступ «Все» в развёртывании.';
+      document.getElementById('err').style.display = 'block';
+    });
+}
+
+function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function render(orders){
+  var tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  var n = orders.length;
+  orders.forEach(function(o, i){
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td class="num">' + (n - i) + '</td>' +
+      '<td><b>' + esc(o['Имя']) + '</b></td>' +
+      '<td>' + esc(o['Контакт']) + '</td>' +
+      '<td>' + esc(o['Услуга']) + '</td>' +
+      '<td>' + esc(o['Дата']) + '</td>' +
+      '<td>' + esc(o['Время']) + '</td>' +
+      '<td>' + esc(o['Пожелания']) + '</td>' +
+      '<td>' + esc(o['Канал']) + '</td>' +
+      '<td>' + esc(o['Дата заявки']) + '</td>';
+    tbody.appendChild(tr);
+  });
+  document.getElementById('count').textContent = 'Всего заявок: ' + n;
+}
+
+function logout(){
+  document.getElementById('data-view').style.display = 'none';
+  document.getElementById('login-view').style.display = 'block';
+  document.getElementById('pwd').value = '';
+}
+</script>
+</body>
+</html>
